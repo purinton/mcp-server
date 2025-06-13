@@ -2,7 +2,7 @@
 
 ## @purinton/mcp-server [![npm version](https://img.shields.io/npm/v/@purinton/mcp-server.svg)](https://www.npmjs.com/package/@purinton/mcp-server)[![license](https://img.shields.io/github/license/purinton/mcp-server.svg)](LICENSE)[![build status](https://github.com/purinton/mcp-server/actions/workflows/nodejs.yml/badge.svg)](https://github.com/purinton/mcp-server/actions)
 
-> A mcp-server for Node.js (Insert Brief Description)
+> A Node.js server for the Model Context Protocol (MCP) with dynamic tool loading, HTTP API, and authentication. Easily extendable with custom tools for AI and automation workflows.
 
 ---
 
@@ -19,6 +19,13 @@
 
 ## Features
 
+- Model Context Protocol (MCP) server implementation for Node.js
+- Dynamic tool loading from a directory
+- HTTP API with authentication (Bearer token)
+- Express-based, easy to extend
+- Utility helpers for tool responses and BigInt-safe serialization
+- TypeScript type definitions included
+
 ## Installation
 
 ```bash
@@ -31,34 +38,89 @@ npm install @purinton/mcp-server
 
 ```js
 // Example for ESM (module JS) usage
+import { mcpServer } from '@purinton/mcp-server';
 
+(async () => {
+  const { app, httpInstance } = await mcpServer({
+    port: 1234, // You can change the port as needed
+    authToken: 'your-secret-token', // Set your token here
+  });
+  console.log('MCP Server started on port 1234');
+})();
 ```
 
 ### CommonJS Example
 
 ```js
 // Example for CommonJS usage
+const { mcpServer } = require('@purinton/mcp-server');
 
+(async () => {
+  const { app, httpInstance } = await mcpServer({
+    port: 1234, // You can change the port as needed
+    authToken: 'your-secret-token', // Set your token here
+  });
+  console.log('MCP Server started on port 1234');
+})();
 ```
 
 ## API
 
-### method1 signature
+### `async mcpServer(options): Promise<{ app, httpInstance, mcpServer, transport }>```
 
-description
+Starts the MCP + HTTP server. Options:
 
-### method2 signature
+- `logger` (optional): Logger instance (default: @purinton/log)
+- `toolsDir` (optional): Path to tools directory (default: ./tools)
+- `port` (optional): Port for HTTP server (default: 1234)
+- `authToken` (optional): Bearer token for authentication
+- `name` (optional): Name for the MCP server
+- `version` (optional): Version for the MCP server
 
-description
+Returns an object with:
 
-... etc ...
+- `app`: Express application instance
+- `httpInstance`: HTTP server instance
+- `mcpServer`: MCP server instance
+- `transport`: HTTP transport instance
+
+### `convertBigIntToString(value)`
+
+Recursively converts all BigInt values in an object to strings.
+
+### `buildResponse(data)`
+
+Wraps a plain JS object into the standard tool response payload.
+
+### `z`
+
+Re-exports [zod](https://github.com/colinhacks/zod) for schema validation.
 
 ## TypeScript
 
 Type definitions are included:
 
 ```ts
+export interface McpServerOptions {
+  logger?: any;
+  toolsDir?: string;
+  port?: number | string;
+  authToken?: string;
+  name?: string;
+  version?: string;
+}
 
+export interface McpServerResult {
+  app: import('express').Application;
+  httpInstance: import('http').Server;
+  mcpServer: any;
+  transport: any;
+}
+
+export function mcpServer(options?: McpServerOptions): Promise<McpServerResult>;
+export function convertBigIntToString(value: any): any;
+export function buildResponse(data: any): { content: { type: 'text'; text: string }[] };
+export { z };
 ```
 
 ## Support
