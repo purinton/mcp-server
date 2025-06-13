@@ -3,8 +3,7 @@ import { z } from 'zod';
 import http from 'http';
 import express from 'express';
 import log from '@purinton/log';
-import path from '@purinton/path';
-import { pathToFileURL } from 'url';
+import { path, pathUrl } from '@purinton/path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
@@ -55,8 +54,7 @@ export async function mcpServer({
     let toolCount = 0;
     for (const file of toolFiles) {
       try {
-        const toolPath = path(toolsDir, file);
-        const mod = await import(pathToFileURL(toolPath).href);
+        const mod = await import(pathUrl(toolsDir, file));
         if (typeof mod.default === 'function') {
           await mod.default(mcpServer);
           logger.debug(`Registered MCP tool from ${file}`);

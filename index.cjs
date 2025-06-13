@@ -2,8 +2,7 @@ const fs = require('fs');
 const http = require('http');
 const express = require('express');
 const log = require('@purinton/log');
-const path = require('@purinton/path');
-const { pathToFileURL } = require('url');
+const { path, pathUrl } = require('@purinton/path');
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
 
@@ -54,8 +53,7 @@ async function mcpServer({
         let toolCount = 0;
         for (const file of toolFiles) {
             try {
-                const toolPath = path(toolsDir, file);
-                const mod = require(pathToFileURL(toolPath).href);
+                const mod = require(pathUrl(toolsDir, file));
                 if (typeof mod.default === 'function') {
                     await mod.default(mcpServer);
                     logger.debug(`Registered MCP tool from ${file}`);
