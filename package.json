@@ -10,6 +10,8 @@
         "index.mjs",
         "index.cjs",
         "index.d.ts",
+        "BearerStreamableHTTPServerTransport.mjs",
+        "BearerStreamableHTTPServerTransport.cjs",
         "README.md",
         "LICENSE"
     ],
