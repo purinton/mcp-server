@@ -66,6 +66,29 @@ async function mcpServer({
     log.error('Error registering MCP tools:', toolErr);
   }
   const transport = new StreamableHTTPServerTransport({});
+
+  // --- PATCH: Always inject bearerToken into extra context ---
+  if (transport && typeof transport.handleRequest === 'function') {
+    const _origHandleRequest = transport.handleRequest.bind(transport);
+    transport.handleRequest = async (req, res, body, extra) => {
+      // Try to get the bearer token from the request or extra
+      let bearerToken = extra && extra.bearerToken;
+      if (!bearerToken) {
+        const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          bearerToken = authHeader.slice('Bearer '.length).trim();
+        }
+      }
+      // Set global fallback for legacy code
+      if (bearerToken) {
+        global.__currentBearerToken__ = bearerToken;
+      }
+      // Merge into extra context
+      const ctx = Object.assign({}, extra, { bearerToken });
+      return _origHandleRequest(req, res, body, ctx);
+    };
+  }
+
   try {
     await mcpServer.connect(transport);
     log.debug('MCP Server ' + version + ' connected successfully');
