@@ -5,7 +5,7 @@ const express = require('express');
 const logger = require('@purinton/log');
 const { path } = require('@purinton/path');
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
-const { BearerStreamableHTTPServerTransport } = require('./BearerStreamableHTTPServerTransport.mjs');
+const { BearerStreamableHTTPServerTransport } = require('./BearerStreamableHTTPServerTransport.cjs');
 
 /**
  * Start the MCP + HTTP server.
