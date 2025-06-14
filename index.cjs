@@ -3,7 +3,7 @@ const { z } = require('zod');
 const http = require('http');
 const express = require('express');
 const logger = require('@purinton/log');
-const { path } = require('@purinton/path');
+const { path, pathUrl } = require('@purinton/path');
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
 
@@ -44,8 +44,7 @@ async function mcpServer({
     for (const file of toolFiles) {
       try {
         const toolName = file.replace(/\.cjs$/, '');
-        const toolPath = path(toolsDir, file);
-        const mod = require(toolPath);
+        const mod = require(path(toolsDir, file));
         if (typeof mod === 'function') {
           await mod({ mcpServer, toolName, log });
           log.debug(`Registered MCP tool from ${file}`);
@@ -65,6 +64,7 @@ async function mcpServer({
   } catch (toolErr) {
     log.error('Error registering MCP tools:', toolErr);
   }
+
   const transport = new StreamableHTTPServerTransport({});
   try {
     await mcpServer.connect(transport);
@@ -76,7 +76,6 @@ async function mcpServer({
 
   const app = express();
   app.use(express.json());
-  // Error handler for invalid JSON
   app.use((err, req, res, next) => {
     if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
       return res.status(406).json({ error: 'Invalid JSON' });
@@ -94,14 +93,12 @@ async function mcpServer({
     } catch (e) {
       bodyText = '[unserializable body]';
     }
-    if (logger) {
-      if (req.method === 'GET') {
-        log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
-      } else if (req.method === 'POST') {
-        log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
-      } else {
-        log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
-      }
+    if (req.method === 'GET') {
+      log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
+    } else if (req.method === 'POST') {
+      log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
+    } else {
+      log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
     }
     next();
   });
@@ -129,14 +126,12 @@ async function mcpServer({
     res.end = function (chunk, ...args) {
       if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       const bodyText = chunks.length ? Buffer.concat(chunks).toString('utf8') : '';
-      if (logger) {
-        if (req.method === 'GET') {
-          log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
-        } else if (req.method === 'POST') {
-          log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
-        } else {
-          log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
-        }
+      if (req.method === 'GET') {
+        log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
+      } else if (req.method === 'POST') {
+        log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
+      } else {
+        log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
       }
       res.end = oldEnd;
       return oldEnd.call(this, chunk, ...args);
@@ -181,9 +176,10 @@ async function mcpServer({
 
   app.post('/', async (req, res) => {
     try {
+      log.debug('handleRequest / POST:', req.body);
       await transport.handleRequest(req, res, req.body);
     } catch (err) {
-      if (logger) log.error('Error handling / POST request:', err);
+      log.error('Error handling / POST request:', err);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Internal MCP server error', details: err && err.stack ? err.stack : String(err) });
       }

@@ -89,14 +89,12 @@ export async function mcpServer({
     } catch (e) {
       bodyText = '[unserializable body]';
     }
-    if (logger) {
-      if (req.method === 'GET') {
-        log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
-      } else if (req.method === 'POST') {
-        log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
-      } else {
-        log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
-      }
+    if (req.method === 'GET') {
+      log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
+    } else if (req.method === 'POST') {
+      log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
+    } else {
+      log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
     }
     next();
   });
@@ -124,14 +122,12 @@ export async function mcpServer({
     res.end = function (chunk, ...args) {
       if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       const bodyText = chunks.length ? Buffer.concat(chunks).toString('utf8') : '';
-      if (logger) {
-        if (req.method === 'GET') {
-          log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
-        } else if (req.method === 'POST') {
-          log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
-        } else {
-          log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
-        }
+      if (req.method === 'GET') {
+        log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
+      } else if (req.method === 'POST') {
+        log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
+      } else {
+        log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
       }
       res.end = oldEnd;
       return oldEnd.call(this, chunk, ...args);
@@ -176,9 +172,10 @@ export async function mcpServer({
 
   app.post('/', async (req, res) => {
     try {
+      log.debug('handleRequest / POST:', req.body);
       await transport.handleRequest(req, res, req.body);
     } catch (err) {
-      if (logger) log.error('Error handling / POST request:', err);
+      log.error('Error handling / POST request:', err);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Internal MCP server error', details: err && err.stack ? err.stack : String(err) });
       }
