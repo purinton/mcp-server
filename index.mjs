@@ -5,7 +5,7 @@ import express from 'express';
 import logger from '@purinton/log';
 import { path, pathUrl } from '@purinton/path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { BearerStreamableHTTPServerTransport } from './BearerStreamableHTTPServerTransport.mjs';
 
 /**
  * Start the MCP + HTTP server.
@@ -61,41 +61,7 @@ export async function mcpServer({
     log.error('Error registering MCP tools:', toolErr);
   }
 
-  const transport = new StreamableHTTPServerTransport({});
-
-  // --- PATCH: Always inject bearerToken into extra context ---
-  if (transport && typeof transport.handleRequest === 'function') {
-    const _origHandleRequest = transport.handleRequest.bind(transport);
-    transport.handleRequest = async (req, res, body, extra) => {
-      // Try to get the bearer token from the request or extra
-      let bearerToken = extra && extra.bearerToken;
-      if (!bearerToken) {
-        const authHeader = req.headers['authorization'] || req.headers['Authorization'];
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-          bearerToken = authHeader.slice('Bearer '.length).trim();
-        }
-      }
-      // Set global fallback for legacy code
-      if (bearerToken) {
-        global.__currentBearerToken__ = bearerToken;
-      }
-      // Patch the MCP server's CallToolRequest handler to merge bearerToken into extra
-      const mcpServerInstance = mcpServer && mcpServer.server;
-      if (mcpServerInstance && typeof mcpServerInstance._requestHandlers === 'object') {
-        const callToolHandler = mcpServerInstance._requestHandlers['tools/call'];
-        if (callToolHandler && !callToolHandler.__bearerPatch) {
-          mcpServerInstance._requestHandlers['tools/call'] = async (request, origExtra) => {
-            const mergedExtra = { ...origExtra, bearerToken };
-            return callToolHandler(request, mergedExtra);
-          };
-          mcpServerInstance._requestHandlers['tools/call'].__bearerPatch = true;
-        }
-      }
-      // Merge into extra context for the transport
-      const ctx = { ...extra, bearerToken };
-      return _origHandleRequest(req, res, body, ctx);
-    };
-  }
+  const transport = new BearerStreamableHTTPServerTransport({});
 
   try {
     await mcpServer.connect(transport);
