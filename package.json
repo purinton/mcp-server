@@ -1,7 +1,7 @@
 {
     "name": "@purinton/mcp-server",
     "type": "module",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "A Node.js server for the Model Context Protocol (MCP) with dynamic tool loading, HTTP API, and authentication.",
     "main": "index.cjs",
     "module": "index.mjs",
