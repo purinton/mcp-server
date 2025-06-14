@@ -28,7 +28,6 @@ export async function mcpServer({
   name,
   version
 } = {}) {
-  // --- MCP Server Initialization ---
   try {
     const packageJsonPath = path(import.meta, 'package.json');
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
@@ -44,9 +43,10 @@ export async function mcpServer({
     let toolCount = 0;
     for (const file of toolFiles) {
       try {
+        const toolName = file.replace(/\.mjs$/, '');
         const mod = await import(pathUrl(toolsDir, file));
         if (typeof mod.default === 'function') {
-          await mod.default(mcpServer);
+          await mod.default({ mcpServer, toolName, log });
           log.debug(`Registered MCP tool from ${file}`);
           toolCount++;
         } else {
@@ -60,7 +60,7 @@ export async function mcpServer({
   } catch (toolErr) {
     log.error('Error registering MCP tools:', toolErr);
   }
-  // Connect MCP server
+
   const transport = new StreamableHTTPServerTransport({});
   try {
     await mcpServer.connect(transport);
@@ -70,10 +70,8 @@ export async function mcpServer({
     throw err;
   }
 
-  // --- HTTP Server Initialization ---
   const app = express();
   app.use(express.json());
-  // Error handler for invalid JSON
   app.use((err, req, res, next) => {
     if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
       return res.status(406).json({ error: 'Invalid JSON' });
@@ -81,7 +79,6 @@ export async function mcpServer({
     next(err);
   });
 
-  // Logging middleware
   app.use((req, res, next) => {
     if (req.method === 'GET' && req.url === '/') {
       return next();
@@ -104,7 +101,6 @@ export async function mcpServer({
     next();
   });
 
-  // Response logging middleware
   app.use((req, res, next) => {
     if (req.method === 'GET' && req.url === '/') {
       return next();
@@ -144,7 +140,6 @@ export async function mcpServer({
     next();
   });
 
-  // Auth middleware for POST /
   app.use(async (req, res, next) => {
     if (req.method === 'POST' && req.url === '/') {
       const authHeader = req.headers['authorization'] || req.headers['Authorization'];

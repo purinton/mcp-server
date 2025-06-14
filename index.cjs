@@ -28,7 +28,6 @@ async function mcpServer({
   name,
   version
 } = {}) {
-  // --- MCP Server Initialization ---
   try {
     const packageJsonPath = path(__dirname, 'package.json');
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
@@ -40,13 +39,15 @@ async function mcpServer({
   const mcpServer = new McpServer({ name, version }, { capabilities: { resources: {} } });
   mcpServer.options = { name, version };
   try {
-    const toolFiles = fs.readdirSync(toolsDir).filter(f => f.endsWith('.cjs'));
+    const toolFiles = fs.readdirSync(toolsDir).filter(f => f.endsWith('.mjs'));
     let toolCount = 0;
     for (const file of toolFiles) {
       try {
+        const toolName = file.replace(/\.mjs$/, '');
         const mod = require(pathUrl(toolsDir, file));
         if (typeof mod.default === 'function') {
-          await mod.default(mcpServer);
+          // Pass the same argument signature as ESM version
+          await mod.default({ mcpServer, toolName, log });
           log.debug(`Registered MCP tool from ${file}`);
           toolCount++;
         } else {
@@ -60,7 +61,6 @@ async function mcpServer({
   } catch (toolErr) {
     log.error('Error registering MCP tools:', toolErr);
   }
-  // Connect MCP server
   const transport = new StreamableHTTPServerTransport({});
   try {
     await mcpServer.connect(transport);
@@ -70,7 +70,6 @@ async function mcpServer({
     throw err;
   }
 
-  // --- HTTP Server Initialization ---
   const app = express();
   app.use(express.json());
   // Error handler for invalid JSON
@@ -81,7 +80,6 @@ async function mcpServer({
     next(err);
   });
 
-  // Logging middleware
   app.use((req, res, next) => {
     if (req.method === 'GET' && req.url === '/') {
       return next();
@@ -104,7 +102,6 @@ async function mcpServer({
     next();
   });
 
-  // Response logging middleware
   app.use((req, res, next) => {
     if (req.method === 'GET' && req.url === '/') {
       return next();
@@ -144,7 +141,6 @@ async function mcpServer({
     next();
   });
 
-  // Auth middleware for POST /
   app.use(async (req, res, next) => {
     if (req.method === 'POST' && req.url === '/') {
       const authHeader = req.headers['authorization'] || req.headers['Authorization'];

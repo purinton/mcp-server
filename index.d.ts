@@ -22,6 +22,12 @@ export interface McpServerResult {
   transport: any;
 }
 
+/**
+ * Start the MCP + HTTP server.
+ *
+ * Tools are loaded from the toolsDir as .mjs files and registered with the signature:
+ *   export default async function ({ mcpServer, toolName, log }) { ... }
+ */
 export function mcpServer(options?: McpServerOptions): Promise<McpServerResult>;
 
 /**
