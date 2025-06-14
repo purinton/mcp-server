@@ -79,60 +79,16 @@ export async function mcpServer({
     next(err);
   });
 
+  // Log each request succinctly
   app.use((req, res, next) => {
     if (req.method === 'GET' && req.url === '/') {
       return next();
     }
-    let bodyText = '';
-    try {
-      bodyText = req.body && Object.keys(req.body).length > 0 ? JSON.stringify(req.body) : '';
-    } catch (e) {
-      bodyText = '[unserializable body]';
-    }
-    if (req.method === 'GET') {
-      log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
-    } else if (req.method === 'POST') {
-      log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
-    } else {
-      log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
-    }
-    next();
-  });
-
-  app.use((req, res, next) => {
-    if (req.method === 'GET' && req.url === '/') {
-      return next();
-    }
-    const oldSend = res.send;
-    const oldEnd = res.end;
-    const oldWrite = res.write;
-    let chunks = [];
-
-    res.send = function (body) {
-      if (body) chunks.push(Buffer.isBuffer(body) ? body : Buffer.from(body));
-      res.send = oldSend;
-      return oldSend.call(this, body);
-    };
-
-    res.write = function (chunk, ...args) {
-      if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      return oldWrite.call(this, chunk, ...args);
-    };
-
-    res.end = function (chunk, ...args) {
-      if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      const bodyText = chunks.length ? Buffer.concat(chunks).toString('utf8') : '';
-      if (req.method === 'GET') {
-        log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
-      } else if (req.method === 'POST') {
-        log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
-      } else {
-        log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
-      }
-      res.end = oldEnd;
-      return oldEnd.call(this, chunk, ...args);
-    };
-
+    log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip}`);
+    // Use res.on('finish') for response logging
+    res.on('finish', () => {
+      log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode}`);
+    });
     next();
   });
 
@@ -179,10 +135,10 @@ export async function mcpServer({
           : undefined;
         req.body.params._meta.bearerToken = token;
       }
-      log.debug('handleRequest / POST:', req.body);
+      // Only call handleRequest if response not already sent
+      if (res.headersSent) return;
       await transport.handleRequest(req, res, req.body);
     } catch (err) {
-      log.error('Error handling / POST request:', err);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Internal MCP server error', details: err && err.stack ? err.stack : String(err) });
       }
