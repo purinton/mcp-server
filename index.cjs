@@ -3,7 +3,7 @@ const { z } = require('zod');
 const http = require('http');
 const express = require('express');
 const logger = require('@purinton/log');
-const { path, pathUrl } = require('@purinton/path');
+const { path } = require('@purinton/path');
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
 
@@ -39,19 +39,23 @@ async function mcpServer({
   const mcpServer = new McpServer({ name, version }, { capabilities: { resources: {} } });
   mcpServer.options = { name, version };
   try {
-    const toolFiles = fs.readdirSync(toolsDir).filter(f => f.endsWith('.mjs'));
+    const toolFiles = fs.readdirSync(toolsDir).filter(f => f.endsWith('.cjs'));
     let toolCount = 0;
     for (const file of toolFiles) {
       try {
-        const toolName = file.replace(/\.mjs$/, '');
-        const mod = require(pathUrl(toolsDir, file));
-        if (typeof mod.default === 'function') {
-          // Pass the same argument signature as ESM version
+        const toolName = file.replace(/\.cjs$/, '');
+        const toolPath = path(toolsDir, file);
+        const mod = require(toolPath);
+        if (typeof mod === 'function') {
+          await mod({ mcpServer, toolName, log });
+          log.debug(`Registered MCP tool from ${file}`);
+          toolCount++;
+        } else if (typeof mod.default === 'function') {
           await mod.default({ mcpServer, toolName, log });
           log.debug(`Registered MCP tool from ${file}`);
           toolCount++;
         } else {
-          log.warn(`No default export function in ${file}`);
+          log.warn(`No export function in ${file}`);
         }
       } catch (toolErr) {
         log.error(`Error registering MCP tool from ${file}:`, toolErr);

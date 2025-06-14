@@ -2,7 +2,7 @@
 
 ## @purinton/mcp-server [![npm version](https://img.shields.io/npm/v/@purinton/mcp-server.svg)](https://www.npmjs.com/package/@purinton/mcp-server)[![license](https://img.shields.io/github/license/purinton/mcp-server.svg)](LICENSE)[![build status](https://github.com/purinton/mcp-server/actions/workflows/nodejs.yml/badge.svg)](https://github.com/purinton/mcp-server/actions)
 
-> A Node.js server for the Model Context Protocol (MCP) with dynamic tool loading, HTTP API, and authentication. Easily extendable with custom tools for AI and automation workflows. Supports both CommonJS and ESM. **Tools must be written as `.mjs` files and use the new registration signature.**
+> A Node.js server for the Model Context Protocol (MCP) with dynamic tool loading, HTTP API, and authentication. Easily extendable with custom tools for AI and automation workflows. Supports both CommonJS and ESM.
 
 ---
 
@@ -13,7 +13,8 @@
 - [Usage](#usage)
   - [ESM Example](#esm-example)
   - [CommonJS Example](#commonjs-example)
-  - [Custom Tool Example](#custom-tool-example)
+  - [Custom Tool Example (ESM)](#custom-tool-example-esm)
+  - [Custom Tool Example (CommonJS)](#custom-tool-example-commonjs)
 - [API](#api)
 - [TypeScript](#typescript)
 - [License](#license)
@@ -22,7 +23,7 @@
 
 - Model Context Protocol (MCP) server implementation for Node.js
 - Dynamic tool loading from a directory (`tools/`)
-  - **Loads `.mjs` files in both ESM and CommonJS mode**
+  - **Loads `.mjs` files in ESM mode, `.cjs` files in CommonJS mode**
 - HTTP API with authentication (Bearer token or custom async callback)
 - Express-based, easy to extend
 - Utility helpers for tool responses and BigInt-safe serialization
@@ -45,13 +46,18 @@ import { mcpServer } from '@purinton/mcp-server';
 
 (async () => {
   const { app, httpInstance } = await mcpServer({
-    port: 1234, // You can change the port as needed
-    authToken: 'your-secret-token', // Set your token here
-    toolsDir: './tools', // Path to your tools directory (optional)
-    // Optionally, use a custom async auth callback:
-    // authCallback: async (token) => token === 'your-secret-token',
+    // port: 1234, // You can change the port as needed
+    // authToken: 'your-secret-token', // You can still use this for static token auth
+    // toolsDir: './tools', // Path to your tools directory
+    // name: 'Example MCP Server', // Set your server name
+    // version: '1.0.0', // Set your server version
+    // // Example: custom async auth callback
+    // authCallback: async (token) => {
+    //  // Replace with your own logic, e.g. check token in DB or against a list
+    //  return token === 'your-secret-token';
+    // }
   });
-  console.log('MCP Server started on port 1234');
+  console.log('MCP Server started!');
 })();
 ```
 
@@ -63,21 +69,29 @@ const { mcpServer } = require('@purinton/mcp-server');
 
 (async () => {
   const { app, httpInstance } = await mcpServer({
-    port: 1234, // You can change the port as needed
-    authToken: 'your-secret-token', // Set your token here
-    toolsDir: './tools', // Path to your tools directory (optional)
-    // Optionally, use a custom async auth callback:
-    // authCallback: async (token) => token === 'your-secret-token',
+    // port: 1234, // You can change the port as needed
+    // authToken: 'your-secret-token', // You can still use this for static token auth
+    // toolsDir: './tools', // Path to your tools directory
+    // name: 'Example MCP Server', // Set your server name
+    // version: '1.0.0', // Set your server version
+    // // Example: custom async auth callback
+    // authCallback: async (token) => {
+    //  // Replace with your own logic, e.g. check token in DB or against a list
+    //  return token === 'your-secret-token';
+    // }
   });
-  console.log('MCP Server started on port 1234');
+  console.log('MCP Server started!');
 })();
 ```
 
-> **Note:** Regardless of ESM or CommonJS usage, tools must be `.mjs` files and use the new registration signature (see below).
+> **Note:**
+>
+> - In ESM mode, tools must be `.mjs` files and use the ESM export signature.
+> - In CommonJS mode, tools must be `.cjs` files and use the CommonJS export signature.
 
-### Custom Tool Example
+### Custom Tool Example (ESM)
 
-To add your own tool, create a file in the `tools/` directory (e.g., `tools/echo.mjs`). **Tools must use the following signature:**
+To add your own tool for ESM, create a file in the `tools/` directory (e.g., `tools/echo.mjs`):
 
 ```js
 import { z, buildResponse } from '@purinton/mcp-server';
@@ -100,6 +114,33 @@ export default async function ({ mcpServer, toolName, log }) {
     }
   );
 }
+```
+
+### Custom Tool Example (CommonJS)
+
+To add your own tool for CommonJS, create a file in the `tools/` directory (e.g., `tools/echo.cjs`):
+
+```js
+const { z, buildResponse } = require('@purinton/mcp-server');
+
+module.exports = async function ({ mcpServer, toolName, log }) {
+  mcpServer.tool(
+    toolName,
+    "Echo Tool",
+    { echoText: z.string() },
+    async (_args, _extra) => {
+      log.debug(`${toolName} Request`, { _args });
+      const response = {
+        message: "echo-reply",
+        data: {
+          text: _args.echoText
+        }
+      };
+      log.debug(`${toolName} Response`, { response });
+      return buildResponse(response);
+    }
+  );
+};
 ```
 
 ## API
