@@ -2,7 +2,7 @@
 
 ## @purinton/mcp-server [![npm version](https://img.shields.io/npm/v/@purinton/mcp-server.svg)](https://www.npmjs.com/package/@purinton/mcp-server)[![license](https://img.shields.io/github/license/purinton/mcp-server.svg)](LICENSE)[![build status](https://github.com/purinton/mcp-server/actions/workflows/nodejs.yml/badge.svg)](https://github.com/purinton/mcp-server/actions)
 
-> A Node.js server for the Model Context Protocol (MCP) with dynamic tool loading, HTTP API, and authentication. Easily extendable with custom tools for AI and automation workflows.
+> A Node.js server for the Model Context Protocol (MCP) with dynamic tool loading, HTTP API, and authentication. Easily extendable with custom tools for AI and automation workflows. Supports both CommonJS and ESM.
 
 ---
 
@@ -13,6 +13,7 @@
 - [Usage](#usage)
   - [ESM Example](#esm-example)
   - [CommonJS Example](#commonjs-example)
+  - [Custom Tool Example](#custom-tool-example)
 - [API](#api)
 - [TypeScript](#typescript)
 - [License](#license)
@@ -20,11 +21,13 @@
 ## Features
 
 - Model Context Protocol (MCP) server implementation for Node.js
-- Dynamic tool loading from a directory
-- HTTP API with authentication (Bearer token)
+- Dynamic tool loading from a directory (`tools/`)
+  - Loads `.mjs` files in ESM mode, `.cjs` files in CommonJS mode
+- HTTP API with authentication (Bearer token or custom async callback)
 - Express-based, easy to extend
 - Utility helpers for tool responses and BigInt-safe serialization
 - TypeScript type definitions included
+- Supports both CommonJS and ESM usage
 
 ## Installation
 
@@ -44,6 +47,9 @@ import { mcpServer } from '@purinton/mcp-server';
   const { app, httpInstance } = await mcpServer({
     port: 1234, // You can change the port as needed
     authToken: 'your-secret-token', // Set your token here
+    toolsDir: './tools', // Path to your tools directory (optional)
+    // Optionally, use a custom async auth callback:
+    // authCallback: async (token) => token === 'your-secret-token',
   });
   console.log('MCP Server started on port 1234');
 })();
@@ -59,9 +65,31 @@ const { mcpServer } = require('@purinton/mcp-server');
   const { app, httpInstance } = await mcpServer({
     port: 1234, // You can change the port as needed
     authToken: 'your-secret-token', // Set your token here
+    toolsDir: './tools', // Path to your tools directory (optional)
+    // Optionally, use a custom async auth callback:
+    // authCallback: async (token) => token === 'your-secret-token',
   });
   console.log('MCP Server started on port 1234');
 })();
+```
+
+### Custom Tool Example
+
+To add your own tool, create a file in the `tools/` directory (e.g., `tools/echo.mjs` for ESM):
+
+```js
+import { z, buildResponse } from '@purinton/mcp-server';
+
+export default async function (server, toolName = 'echo') {
+  server.tool(
+    toolName,
+    "Echo Tool",
+    { echoText: z.string() },
+    async (_args, _extra) => {
+      return buildResponse({ message: "echo-reply", data: { text: _args.echoText } });
+    }
+  );
+}
 ```
 
 ## API
@@ -70,10 +98,11 @@ const { mcpServer } = require('@purinton/mcp-server');
 
 Starts the MCP + HTTP server. Options:
 
-- `logger` (optional): Logger instance (default: @purinton/log)
-- `toolsDir` (optional): Path to tools directory (default: ./tools)
-- `port` (optional): Port for HTTP server (default: 1234)
-- `authToken` (optional): Bearer token for authentication
+- `log` (optional): Logger instance (default: @purinton/log)
+- `toolsDir` (optional): Path to tools directory (default: `./tools` relative to the entry file)
+- `port` (optional): Port for HTTP server (default: 1234 or `process.env.MCP_PORT`)
+- `authToken` (optional): Bearer token for authentication (default: `process.env.MCP_TOKEN`)
+- `authCallback` (optional): Custom async callback for authentication. Receives `(token)` and returns `true`/`false` or a Promise.
 - `name` (optional): Name for the MCP server
 - `version` (optional): Version for the MCP server
 
@@ -102,10 +131,11 @@ Type definitions are included:
 
 ```ts
 export interface McpServerOptions {
-  logger?: any;
+  log?: any;
   toolsDir?: string;
   port?: number | string;
   authToken?: string;
+  authCallback?: (token?: string) => boolean | Promise<boolean>;
   name?: string;
   version?: string;
 }

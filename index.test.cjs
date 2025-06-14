@@ -9,19 +9,19 @@ test('mcpServer is a function', () => {
 });
 
 describe('mcpServer HTTP API', () => {
-  let logger;
+  let log;
   let app;
   let httpInstance;
   let server;
 
   beforeEach(async () => {
-    logger = {
+    log = {
       debug: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
     };
     // Use a random port (0) and a test token
-    const result = await mcpServer({ logger, port: 0, authToken: 'test-token' });
+    const result = await mcpServer({ log, port: 0, authToken: 'test-token' });
     app = result.app;
     httpInstance = result.httpInstance;
     server = result;
@@ -51,9 +51,33 @@ describe('mcpServer HTTP API', () => {
       .expect(406); // Updated to expect 406 Not Acceptable
   });
 
+  test('should support custom authCallback', async () => {
+    const customAuth = jest.fn(async (token) => token === 'custom-token');
+    const result = await mcpServer({ log, port: 0, authCallback: customAuth });
+    const app2 = result.app;
+    // No auth header
+    await request(app2).post('/').send({ foo: 'bar' }).expect(401);
+    // Wrong token
+    await request(app2)
+      .post('/')
+      .set('Authorization', 'Bearer wrong-token')
+      .send({ foo: 'bar' })
+      .expect(401);
+    // Correct token
+    await request(app2)
+      .post('/')
+      .set('Authorization', 'Bearer custom-token')
+      .send({ foo: 'bar' })
+      .expect(406);
+    expect(customAuth).toHaveBeenCalled();
+    if (result.httpInstance && result.httpInstance.close) {
+      result.httpInstance.close();
+    }
+  });
+
   test('should log HTTP requests and responses', async () => {
     await request(app).get('/').expect(200);
-    expect(logger.debug).toHaveBeenCalled();
+    expect(log.debug).toHaveBeenCalled();
   });
 
   test('should export all expected properties', () => {
@@ -64,7 +88,7 @@ describe('mcpServer HTTP API', () => {
   });
 
   test('should return 500 if MCP_TOKEN is missing', async () => {
-    const result = await mcpServer({ logger, port: 0, authToken: undefined });
+    const result = await mcpServer({ log, port: 0, authToken: undefined });
     const app2 = result.app;
     await request(app2)
       .post('/')
@@ -85,7 +109,7 @@ describe('mcpServer HTTP API', () => {
   });
 
   test('should start with custom name and version', async () => {
-    const result = await mcpServer({ logger, port: 0, authToken: 'test-token', name: 'CustomName', version: '9.9.9' });
+    const result = await mcpServer({ log, port: 0, authToken: 'test-token', name: 'CustomName', version: '9.9.9' });
     expect(result.mcpServer.options.name).toBe('CustomName');
     expect(result.mcpServer.options.version).toBe('9.9.9');
     if (result.httpInstance && result.httpInstance.close) {

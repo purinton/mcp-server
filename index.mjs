@@ -2,7 +2,7 @@ import fs from 'fs';
 import { z } from 'zod';
 import http from 'http';
 import express from 'express';
-import log from '@purinton/log';
+import logger from '@purinton/log';
 import { path, pathUrl } from '@purinton/path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -14,41 +14,31 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
  * @param {string} [options.toolsDir] - Path to tools directory (default: ./tools relative to this file)
  * @param {number|string} [options.port] - Port for HTTP server (default: process.env.MCP_PORT || 1234)
  * @param {string} [options.authToken] - Bearer token for authentication (default: process.env.MCP_TOKEN)
+ * @param {function} [options.authCallback] - Optional async callback for custom auth. Receives (token) and returns true/false.
  * @param {string} [options.name] - Name for the MCP server (default: 'MCP Server')
  * @param {string} [options.version] - Version for the MCP server (default: '1.0.0' or package.json version)
  * @returns {Promise<{ app, httpInstance, mcpServer, transport }>}
  */
 export async function mcpServer({
-  logger = log,
+  log = logger,
   toolsDir = path(import.meta, 'tools'),
   port = process.env.MCP_PORT || 1234,
   authToken = process.env.MCP_TOKEN,
-  name = 'MCP Server',
+  authCallback = undefined,
+  name,
   version
 } = {}) {
   // --- MCP Server Initialization ---
-  let resolvedVersion = version || '1.0.0';
   try {
     const packageJsonPath = path(import.meta, 'package.json');
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    resolvedVersion = version || packageJson.version || resolvedVersion;
+    name = name || packageJson.name || '@purinton/mcp-server';
+    version = version || packageJson.version || '1.0.0';
   } catch (err) {
-    logger.warn('[SERVER] Could not read package.json for version:', err && err.stack ? err.stack : err);
+    log.warn('[SERVER] Could not read package.json for version:', err && err.stack ? err.stack : err);
   }
-  const mcpServer = new McpServer(
-    {
-      name: name,
-      version: resolvedVersion
-    },
-    {
-      capabilities: {
-        resources: {}
-      }
-    }
-  );
-  // Attach options for test inspection
-  mcpServer.options = { name, version: resolvedVersion };
-  // Register tools
+  const mcpServer = new McpServer({ name, version }, { capabilities: { resources: {} } });
+  mcpServer.options = { name, version };
   try {
     const toolFiles = fs.readdirSync(toolsDir).filter(f => f.endsWith('.mjs'));
     let toolCount = 0;
@@ -57,26 +47,26 @@ export async function mcpServer({
         const mod = await import(pathUrl(toolsDir, file));
         if (typeof mod.default === 'function') {
           await mod.default(mcpServer);
-          logger.debug(`Registered MCP tool from ${file}`);
+          log.debug(`Registered MCP tool from ${file}`);
           toolCount++;
         } else {
-          logger.warn(`No default export function in ${file}`);
+          log.warn(`No default export function in ${file}`);
         }
       } catch (toolErr) {
-        logger.error(`Error registering MCP tool from ${file}:`, toolErr);
+        log.error(`Error registering MCP tool from ${file}:`, toolErr);
       }
     }
-    logger.debug('Registered ' + toolCount + ' tools');
+    log.debug('Registered ' + toolCount + ' tools');
   } catch (toolErr) {
-    logger.error('Error registering MCP tools:', toolErr);
+    log.error('Error registering MCP tools:', toolErr);
   }
   // Connect MCP server
   const transport = new StreamableHTTPServerTransport({});
   try {
     await mcpServer.connect(transport);
-    logger.debug('MCP Server ' + resolvedVersion + ' connected successfully');
+    log.debug('MCP Server ' + version + ' connected successfully');
   } catch (err) {
-    logger.error('MCP Server connection error:', err && err.stack ? err.stack : err);
+    log.error('MCP Server connection error:', err && err.stack ? err.stack : err);
     throw err;
   }
 
@@ -104,11 +94,11 @@ export async function mcpServer({
     }
     if (logger) {
       if (req.method === 'GET') {
-        logger.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
+        log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
       } else if (req.method === 'POST') {
-        logger.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
+        log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
       } else {
-        logger.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
+        log.debug(`[HTTP] ${req.method} ${req.url} from ${req.ip} body=${bodyText}`);
       }
     }
     next();
@@ -140,11 +130,11 @@ export async function mcpServer({
       const bodyText = chunks.length ? Buffer.concat(chunks).toString('utf8') : '';
       if (logger) {
         if (req.method === 'GET') {
-          logger.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
+          log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
         } else if (req.method === 'POST') {
-          logger.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
+          log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
         } else {
-          logger.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
+          log.debug(`[HTTP RES] ${req.method} ${req.url} -> ${res.statusCode} body=${bodyText}`);
         }
       }
       res.end = oldEnd;
@@ -155,18 +145,31 @@ export async function mcpServer({
   });
 
   // Auth middleware for POST /
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
     if (req.method === 'POST' && req.url === '/') {
       const authHeader = req.headers['authorization'] || req.headers['Authorization'];
-      if (!authToken) {
-        return res.status(500).json({ error: 'MCP_TOKEN not set in environment' });
-      }
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Missing or invalid Authorization header' });
-      }
-      const token = authHeader.slice('Bearer '.length).trim();
-      if (token !== authToken) {
-        return res.status(401).json({ error: 'Invalid bearer token' });
+      const token = authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.slice('Bearer '.length).trim()
+        : undefined;
+      if (authCallback) {
+        try {
+          const result = await authCallback(token);
+          if (!result) {
+            return res.status(401).json({ error: 'Invalid bearer token (authCallback)' });
+          }
+        } catch (err) {
+          return res.status(500).json({ error: 'Auth callback error', details: err && err.stack ? err.stack : String(err) });
+        }
+      } else {
+        if (!authToken) {
+          return res.status(500).json({ error: 'MCP_TOKEN not set in environment' });
+        }
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+        }
+        if (token !== authToken) {
+          return res.status(401).json({ error: 'Invalid bearer token' });
+        }
       }
     }
     next();
@@ -180,7 +183,7 @@ export async function mcpServer({
     try {
       await transport.handleRequest(req, res, req.body);
     } catch (err) {
-      if (logger) logger.error('Error handling / POST request:', err);
+      if (logger) log.error('Error handling / POST request:', err);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Internal MCP server error', details: err && err.stack ? err.stack : String(err) });
       }
@@ -189,11 +192,11 @@ export async function mcpServer({
 
   const httpInstance = http.createServer(app);
   httpInstance.on('error', (err) => {
-    logger.error('HTTP server error:', err && err.stack ? err.stack : err);
+    log.error('HTTP server error:', err && err.stack ? err.stack : err);
   });
 
   httpInstance.listen(port, () => {
-    logger.debug(`MCP HTTP Server listening on port ${port}`);
+    log.debug(`MCP HTTP Server listening on port ${port}`);
   });
 
   return { app, httpInstance, mcpServer, transport };

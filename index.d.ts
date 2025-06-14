@@ -7,6 +7,10 @@ export interface McpServerOptions {
   toolsDir?: string;
   port?: number | string;
   authToken?: string;
+  /**
+   * Optional async callback for custom auth. Receives (token) and returns true/false or Promise<boolean>.
+   */
+  authCallback?: (token?: string) => boolean | Promise<boolean>;
   name?: string;
   version?: string;
 }
