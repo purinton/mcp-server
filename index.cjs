@@ -83,7 +83,19 @@ async function mcpServer({
       if (bearerToken) {
         global.__currentBearerToken__ = bearerToken;
       }
-      // Merge into extra context
+      // Patch the MCP server's CallToolRequest handler to merge bearerToken into extra
+      const mcpServerInstance = mcpServer && mcpServer.server;
+      if (mcpServerInstance && typeof mcpServerInstance._requestHandlers === 'object') {
+        const callToolHandler = mcpServerInstance._requestHandlers['tools/call'];
+        if (callToolHandler && !callToolHandler.__bearerPatch) {
+          mcpServerInstance._requestHandlers['tools/call'] = async (request, origExtra) => {
+            const mergedExtra = Object.assign({}, origExtra, { bearerToken });
+            return callToolHandler(request, mergedExtra);
+          };
+          mcpServerInstance._requestHandlers['tools/call'].__bearerPatch = true;
+        }
+      }
+      // Merge into extra context for the transport
       const ctx = Object.assign({}, extra, { bearerToken });
       return _origHandleRequest(req, res, body, ctx);
     };
