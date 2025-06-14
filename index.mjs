@@ -172,7 +172,14 @@ export async function mcpServer({
 
   app.post('/', async (req, res) => {
     try {
-      log.debug('handleRequest / POST:', req.body);
+      if (req && req.body && typeof req.body === 'object' && req.body.params && req.body.params._meta) {
+        const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+        const token = authHeader && authHeader.startsWith('Bearer ')
+          ? authHeader.slice('Bearer '.length).trim()
+          : undefined;
+        if (!req.body.params._extra) req.body.params._extra = {};
+        req.body.params._extra.bearerToken = token;
+      }
       await transport.handleRequest(req, res, req.body);
     } catch (err) {
       log.error('Error handling / POST request:', err);
