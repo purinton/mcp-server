@@ -181,7 +181,11 @@ async function mcpServer({
 
   app.post('/', async (req, res) => {
     try {
-      await transport.handleRequest(req, res, req.body);
+      const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+      const bearerToken = authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.slice('Bearer '.length).trim()
+        : undefined;
+      await transport.handleRequest(req, res, req.body, { bearerToken });
     } catch (err) {
       if (logger) log.error('Error handling / POST request:', err);
       if (!res.headersSent) {
