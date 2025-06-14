@@ -181,8 +181,7 @@ async function mcpServer({
         const token = authHeader && authHeader.startsWith('Bearer ')
           ? authHeader.slice('Bearer '.length).trim()
           : undefined;
-        if (!req.body.params._extra) req.body.params._extra = {};
-        req.body.params._extra.bearerToken = token;
+        req.body.params._meta.bearerToken = token;
       }
       log.debug('handleRequest / POST:', req.body);
       await transport.handleRequest(req, res, req.body);
