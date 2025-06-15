@@ -1,7 +1,7 @@
 {
     "name": "@purinton/mcp-server",
     "type": "module",
-    "version": "1.0.14",
+    "version": "1.0.15",
     "description": "A Node.js server for the Model Context Protocol (MCP) with dynamic tool loading, HTTP API, and authentication.",
     "main": "index.cjs",
     "module": "index.mjs",
@@ -44,7 +44,7 @@
     },
     "homepage": "https://github.com/purinton/mcp-server#readme",
     "devDependencies": {
-        "jest": "^29.7.0",
+        "jest": "^30.0.0",
         "supertest": "^7.1.1"
     },
     "jest": {
@@ -57,8 +57,8 @@
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.12.3",
-        "@purinton/log": "^1.0.6",
-        "@purinton/path": "^1.0.9",
+        "@purinton/log": "^1.0.8",
+        "@purinton/path": "^1.0.12",
         "express": "^5.1.0"
     }
 }
