@@ -112,9 +112,10 @@ describe('mcpServer HTTP API', () => {
   });
 
   test('should start with custom name and version', async () => {
-    const result = await mcpServer({ log, port: 0, authToken: 'test-token', name: 'CustomName', version: '9.9.9' });
+    const result = await mcpServer({ log, port: 0, authToken: 'test-token', name: 'CustomName', version: '9.9.9', context: { foo: 'bar' } });
     expect(result.mcpServer.options.name).toBe('CustomName');
     expect(result.mcpServer.options.version).toBe('9.9.9');
+    expect(result.mcpServer.context).toEqual({ foo: 'bar' });
     if (result.httpInstance && result.httpInstance.close) {
       result.httpInstance.close();
     }

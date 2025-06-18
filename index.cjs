@@ -17,6 +17,7 @@ const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/ser
  * @param {function} [options.authCallback] - Optional async callback for custom auth. Receives (token) and returns true/false.
  * @param {string} [options.name] - Name for the MCP server (default: 'MCP Server')
  * @param {string} [options.version] - Version for the MCP server (default: '1.0.0' or package.json version)
+ * @param {Object} [options.context] - Context object to attach to mcpServer (default: {})
  * @returns {Promise<{ app, httpInstance, mcpServer, transport }>}
  */
 async function mcpServer({
@@ -26,7 +27,8 @@ async function mcpServer({
   authToken = process.env.MCP_TOKEN,
   authCallback = undefined,
   name,
-  version
+  version,
+  context = {}
 } = {}) {
   try {
     const packageJsonPath = path(__dirname, 'package.json');
@@ -38,6 +40,7 @@ async function mcpServer({
   }
   const mcpServer = new McpServer({ name, version }, { capabilities: { resources: {} } });
   mcpServer.options = { name, version };
+  mcpServer.context = context;
   try {
     const toolFiles = fs.readdirSync(toolsDir).filter(f => f.endsWith('.cjs'));
     let toolCount = 0;

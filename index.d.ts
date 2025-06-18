@@ -1,6 +1,5 @@
 import type { Application } from 'express';
 import type { Server as HTTPServer } from 'http';
-import type { ZodTypeAny } from 'zod';
 
 export interface McpServerOptions {
   logger?: any;
@@ -13,6 +12,7 @@ export interface McpServerOptions {
   authCallback?: (token?: string) => boolean | Promise<boolean>;
   name?: string;
   version?: string;
+  context?: any;
 }
 
 export interface McpServerResult {

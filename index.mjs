@@ -17,6 +17,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
  * @param {function} [options.authCallback] - Optional async callback for custom auth. Receives (token) and returns true/false.
  * @param {string} [options.name] - Name for the MCP server (default: 'MCP Server')
  * @param {string} [options.version] - Version for the MCP server (default: '1.0.0' or package.json version)
+ * @param {Object} [options.context] - Context object to attach to mcpServer (default: {})
  * @returns {Promise<{ app, httpInstance, mcpServer, transport }>}
  */
 export async function mcpServer({
@@ -26,7 +27,8 @@ export async function mcpServer({
   authToken = process.env.MCP_TOKEN,
   authCallback = undefined,
   name,
-  version
+  version,
+  context = {}
 } = {}) {
   try {
     const packageJsonPath = path(import.meta, 'package.json');
@@ -38,6 +40,7 @@ export async function mcpServer({
   }
   const mcpServer = new McpServer({ name, version }, { capabilities: { resources: {} } });
   mcpServer.options = { name, version };
+  mcpServer.context = context;
   try {
     const toolFiles = fs.readdirSync(toolsDir).filter(f => f.endsWith('.mjs'));
     let toolCount = 0;
@@ -135,7 +138,6 @@ export async function mcpServer({
           : undefined;
         req.body.params._meta.bearerToken = token;
       }
-      // Only call handleRequest if response not already sent
       if (res.headersSent) return;
       await transport.handleRequest(req, res, req.body);
     } catch (err) {

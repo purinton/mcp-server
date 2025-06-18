@@ -12,7 +12,8 @@ const { mcpServer } = require('@purinton/mcp-server');
     // authCallback: async (token) => {
     //  // Replace with your own logic, e.g. check token in DB or against a list
     //  return token === 'your-secret-token';
-    // }
+    // },
+    // context: { example: 'context' } // Optional context to pass to tools _extra (db, redis, etc.)
   });
   console.log('MCP Server started!');
 })();

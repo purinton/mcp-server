@@ -55,7 +55,8 @@ import { mcpServer } from '@purinton/mcp-server';
     // authCallback: async (token) => {
     //  // Replace with your own logic, e.g. check token in DB or against a list
     //  return token === 'your-secret-token';
-    // }
+    // },
+    // context: { example: 'context' } // Optional context to pass to tools _extra (db, redis, etc.)
   });
   console.log('MCP Server started!');
 })();
@@ -78,7 +79,8 @@ const { mcpServer } = require('@purinton/mcp-server');
     // authCallback: async (token) => {
     //  // Replace with your own logic, e.g. check token in DB or against a list
     //  return token === 'your-secret-token';
-    // }
+    // },
+    // context: { example: 'context' } // Optional context to pass to tools _extra (db, redis, etc.)
   });
   console.log('MCP Server started!');
 })();
@@ -156,6 +158,7 @@ Starts the MCP + HTTP server. Options:
 - `authCallback` (optional): Custom async callback for authentication. Receives `(token)` and returns `true`/`false` or a Promise.
 - `name` (optional): Name for the MCP server
 - `version` (optional): Version for the MCP server
+- `context` (optional): Context object to attach to the MCP server and pass to tools (e.g. database, redis, etc.)
 
 Returns an object with:
 
@@ -189,6 +192,7 @@ export interface McpServerOptions {
   authCallback?: (token?: string) => boolean | Promise<boolean>;
   name?: string;
   version?: string;
+  context?: any;
 }
 
 export interface McpServerResult {
