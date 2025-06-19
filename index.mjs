@@ -17,7 +17,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
  * @param {function} [options.authCallback] - Optional async callback for custom auth. Receives (token) and returns true/false.
  * @param {string} [options.name] - Name for the MCP server (default: 'MCP Server')
  * @param {string} [options.version] - Version for the MCP server (default: '1.0.0' or package.json version)
- * @param {Object} [options.context] - Context object to attach to mcpServer (default: {})
+ * @param {Object} [options.context] - Additional context to pass to all tool imports (default: {})
  * @returns {Promise<{ app, httpInstance, mcpServer, transport }>}
  */
 export async function mcpServer({
@@ -49,7 +49,7 @@ export async function mcpServer({
         const toolName = file.replace(/\.mjs$/, '');
         const mod = await import(pathUrl(toolsDir, file));
         if (typeof mod.default === 'function') {
-          await mod.default({ mcpServer, toolName, log });
+          await mod.default({ mcpServer, toolName, log, ...context });
           log.debug(`Registered MCP tool from ${file}`);
           toolCount++;
         } else {
